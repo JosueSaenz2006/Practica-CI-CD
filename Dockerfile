@@ -22,8 +22,16 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 # Dependencias de produccion unicamente; se limpia la cache para no inflar la capa.
+# npm solo hace falta durante la construccion: el contenedor arranca con
+# "node server.js" y nunca invoca npm ni npx. Se elimina en la misma capa para
+# que el npm de la imagen base no quede en la imagen final; ahi vive el tar 6.2.1
+# afectado por CVE-2026-59873. Es retirada de superficie de ataque, no exclusion
+# del escaneo: no hay .trivyignore ni cambio de severidad.
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev \
+    && npm cache clean --force \
+    && rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
 # Codigo de ejecucion, tomado de la etapa build: la imagen final contiene
 # exactamente los artefactos que pasaron las pruebas. Copiar desde build (y no
