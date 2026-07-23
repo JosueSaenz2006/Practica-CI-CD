@@ -1,0 +1,35 @@
+# Dependencias: se reinstalan dentro de la imagen con npm ci.
+node_modules
+
+# Control de versiones y CI.
+.git
+.gitignore
+.github
+
+# Manifiestos de Kubernetes y documentacion: no forman parte de la imagen.
+k8s
+docs
+README.md
+*.md
+
+# Base de datos generada en ejecucion. data/.gitkeep no casa con este patron.
+data/*.json
+
+# Configuracion sensible.
+.env
+.env.*
+
+# Logs.
+*.log
+npm-debug.log*
+
+# Artefactos del sistema operativo.
+.DS_Store
+Thumbs.db
+
+# Respaldo temporal de la normalizacion.
+.claude-backup
+
+# El propio Dockerfile no necesita entrar en el contexto.
+Dockerfile*
+.dockerignore

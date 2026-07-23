@@ -1,0 +1,22 @@
+# Dependencias
+node_modules/
+
+# Base de datos local generada en ejecucion (no se versiona).
+# data/.gitkeep si se versiona, para conservar la carpeta vacia.
+data/*.json
+!data/.gitkeep
+
+# Configuracion sensible
+.env
+.env.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Artefactos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Respaldo temporal de la normalizacion (no se versiona)
+.claude-backup/
