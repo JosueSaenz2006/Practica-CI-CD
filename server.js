@@ -7,16 +7,30 @@ const APP_VERSION = process.env.APP_VERSION || 'v1';
 const APP_COLOR = process.env.APP_COLOR || 'blue';
 const SIMULATE_FAILURE = process.env.SIMULATE_FAILURE === 'true';
 
+// Un valor ausente, no numerico o negativo se trata como cero: la app arranca lista.
+function parseStartupDelaySeconds(raw) {
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds < 0) return 0;
+  return seconds;
+}
+
 function createApp() {
   const app = express();
+  // El retraso se calcula por peticion comparando marcas de tiempo, sin bloquear el event loop.
+  const startupDelayMs = parseStartupDelaySeconds(process.env.STARTUP_DELAY_SECONDS) * 1000;
+  const startedAt = Date.now();
+
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public')));
 
   app.get('/health', (req, res) => {
+    if (Date.now() - startedAt < startupDelayMs) {
+      return res.status(503).json({ status: 'starting', ready: false });
+    }
     if (SIMULATE_FAILURE || !db.canAccessDb()) {
       return res.status(500).json({ status: 'error', reason: 'fallo simulado o base de datos no accesible' });
     }
-    res.status(200).json({ status: 'ok' });
+    res.status(200).json({ status: 'ok', ready: true });
   });
 
   app.get('/version', (req, res) => {
@@ -69,4 +83,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApp };
+module.exports = { createApp, parseStartupDelaySeconds };
