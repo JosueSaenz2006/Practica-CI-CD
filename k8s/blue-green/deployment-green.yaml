@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventario-app-green
+  labels:
+    app: inventario-app
+    slot: green
+spec:
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: inventario-app
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: inventario-app
+        slot: green
+    spec:
+      containers:
+        - name: app
+          # Version 3: incorpora la nota visual del despliegue blue-green.
+          # digest sha256:e40a90d19a9eda178504d3fbf013d2526944acd79141fde80a0349b38402528e
+          image: ghcr.io/josuesaenz2006/practica-ci-cd:2ebe61ccd00bc05bf942d6d172cd5265d200142f
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: APP_VERSION
+              value: "green-2ebe61cc"
+            - name: APP_COLOR
+              value: "green"
+            - name: STARTUP_DELAY_SECONDS
+              value: "12"
+            - name: SIMULATE_FAILURE
+              value: "false"
+            # La credencial nunca se versiona: se resuelve desde el Secret del cluster.
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: inventario-app-secret
+                  key: API_KEY
+          # Tolera hasta 21s sin estar listo (1 + 2x10), por encima del arranque lento de 12s.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 10
+          # Empieza despues del arranque lento para no reiniciar un pod que solo esta calentando.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
