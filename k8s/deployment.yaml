@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/josuesaenz2006/practica-ci-cd:f3422484cf2e4c5405129773e77bf5a573061ab4
+          image: ghcr.io/josuesaenz2006/practica-ci-cd:7577d9b0b6b851e11738887065bf8844b838cf8d
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -30,9 +30,9 @@ spec:
             - name: PORT
               value: "3000"
             - name: APP_VERSION
-              value: "f3422484"
+              value: "7577d9b0"
             - name: APP_COLOR
-              value: "blue"
+              value: "green"
             - name: SIMULATE_FAILURE
               value: "false"
           readinessProbe:
