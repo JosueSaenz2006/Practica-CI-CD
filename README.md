@@ -4,7 +4,7 @@ Práctica de **Sistemas Distribuidos — Despliegue de Aplicaciones** (segundo i
 
 | | |
 |---|---|
-| **Autor** | Josué Sáenz — [@JosueSaenz2006](https://github.com/JosueSaenz2006) |
+| **Autores** | Josué Sáenz — [@JosueSaenz2006](https://github.com/JosueSaenz2006) y Edwin Angamarca|
 | **Repositorio** | https://github.com/JosueSaenz2006/Practica-CI-CD |
 | **Registro de imágenes** | `ghcr.io/josuesaenz2006/practica-ci-cd` (público) |
 | **Aplicación** | `inventario-app` — catálogo de inventario Node.js/Express |
