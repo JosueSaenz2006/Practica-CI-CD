@@ -4,7 +4,7 @@ Práctica de **Sistemas Distribuidos — Despliegue de Aplicaciones** (segundo i
 
 | | |
 |---|---|
-| **Autores** | Josué Sáenz — [@JosueSaenz2006](https://github.com/JosueSaenz2006) y Edwin Angamarca|
+| **Autores** | Josué Gabriel Sáenz Arias<br>Edwin Alejandro Angamarca Avendaño |
 | **Repositorio** | https://github.com/JosueSaenz2006/Practica-CI-CD |
 | **Registro de imágenes** | `ghcr.io/josuesaenz2006/practica-ci-cd` (público) |
 | **Aplicación** | `inventario-app` — catálogo de inventario Node.js/Express |
@@ -148,7 +148,7 @@ Toda la configuración entra por variables de entorno, nunca escrita en el códi
 | `SIMULATE_FAILURE` | Si es `true`, `/health` responde 500 | `false` |
 | `API_KEY` | Credencial; solo se publica si está configurada | ausente |
 
-Consecuencia: **la misma imagen** sirve para blue y para green. Lo único que cambia entre entornos es la configuración externa — nunca el artefacto.
+Los dos entornos comparten la misma aplicación y configuración estructural, pero en esta demostración utilizan imágenes inmutables distintas. Blue ejecuta la versión estable f5b43b94, mientras green ejecuta la versión nueva 2ebe61cc. Las variables APP_VERSION, APP_COLOR y la etiqueta slot permiten identificar cada entorno y controlar qué versión recibe tráfico.
 
 ## 6. Endpoints
 
@@ -715,6 +715,17 @@ La diferencia esencial: en Rolling Update el rollback **reconstruye** los pods; 
 
 Las métricas se calculan sobre **promociones reales al clúster**, no sobre ejecuciones de GitHub Actions. Un run que construye y publica una imagen no es un despliegue: la imagen solo se convierte en despliegue cuando `kubectl` la promueve y llega a recibir tráfico. Confundir ambas cosas inflaría la frecuencia y falsearía el denominador del change failure rate.
 
+### Tabla DORA propia: fórmula, resultado y evidencia
+
+| Métrica | Fórmula | Resultado | Evidencia verificable |
+|---|---|---|---|
+| Lead time — Rolling Update | `2026-07-26 17:51:55.604 UTC - 2026-07-26 17:47:57 UTC` | **3 min 58 s** | Commit `7577d9b0`; timestamp del commit y momento de tráfico real. |
+| Lead time — Blue-Green | `2026-07-26 19:00:22.483 UTC - 2026-07-26 18:53:19 UTC` | **7 min 03 s** | Commit `2ebe61cc`; timestamp del commit y cutover real. |
+| Frecuencia de despliegue | `6 / 2` jornadas activas; complemento: `6 / 3,04` días transcurridos | **3,00 promociones por día activo**; **1,97 por día transcurrido** | Seis promociones reales, dos jornadas activas y una ventana total de 3,04 días. |
+| Change failure rate | `(0 / 6) × 100` | **0/6 = 0 %** | Seis promociones evaluadas; ninguna requirió rollback o corrección no planificada. |
+
+Los resultados corresponden a una práctica académica de seis promociones concentradas en dos jornadas. Por ello describen el comportamiento observado, pero no permiten extrapolar un nivel de desempeño sostenido en un entorno productivo.
+
 ### Clasificación de los eventos
 
 | Categoría | Cantidad | ¿Cuenta como despliegue? |
@@ -760,7 +771,7 @@ Frecuencia = 6 promociones / 2 días con actividad = 3.0 por día activo
            = 6 promociones / 3.04 días naturales  = 1.97 por día natural
 ```
 
-Se reportan ambas cifras porque la actividad se concentró en dos jornadas, no se distribuyó de forma uniforme. En la clasificación DORA esto corresponde a la banda **alta** (entre una vez por día y una por semana), con la salvedad de que la ventana es demasiado corta para una clasificación estadísticamente sólida.
+Se reportan ambas cifras porque la actividad se concentró en dos jornadas, no se distribuyó de forma uniforme. No se asigna una clasificación cualitativa: se presentan únicamente los resultados observados y su base de cálculo.
 
 ### Change failure rate
 
@@ -794,13 +805,11 @@ Blue-Green tiene mayor lead time porque incluye desplegar green completo y valid
 
 La primera promoción tuvo un lead time de 63.9 min, muy por encima de las demás. No fue el pipeline: aquel ciclo incluyó una reescritura de historial y varias iteraciones para corregir la CVE.
 
-### Tiempo de restauración del servicio
+### Evidencia complementaria de la estrategia
 
-```
-Rollback Blue-Green (cambio de selector): 426 ms, sin recrear pods
-```
+**Tiempo de rollback experimental Blue-Green: 426 ms.**
 
-Es el mejor caso posible porque el entorno anterior seguía vivo. Un `kubectl rollout undo` en el Deployment de Rolling Update habría reconstruido los pods, con un coste del orden de los 12 s medidos en la promoción #2.
+El rollback se ejecutó como una prueba planificada sobre una versión sana y no respondió a un fallo de servicio. Por ello no se presenta como MTTR ni como tiempo de restauración DORA. La operación cambió el selector del Service sin recrear pods; el entorno anterior seguía vivo. Como contraste técnico, un `kubectl rollout undo` en el Deployment de Rolling Update habría reconstruido los pods, con un coste del orden de los 12 s medidos en la promoción #2.
 
 ## 20. Instalación y ejecución
 
@@ -949,7 +958,7 @@ kubectl delete pod demo --now
 | 11 | Rolling Update respeta la estrategia | mín. 3 disponibles, máx. 5 activos |
 | 12 | Green validado sin tráfico | directo `green`, Service `blue` |
 | 13 | Cutover atómico | 493 ms, sin estado intermedio |
-| 14 | Rollback instantáneo | 426 ms, 0 pods recreados |
+| 14 | Rollback planificado | Tiempo experimental: 426 ms, 0 pods recreados |
 | 15 | Blue-Green sin downtime | 1598/1598 HTTP 200, 0 errores |
 | 16 | ClusterIP y NodePort estables | valor único en 160 muestras |
 | 17 | Pipeline verde | 10 de 11 runs; el fallo fue la barrera |
