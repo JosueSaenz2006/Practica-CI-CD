@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/josuesaenz2006/practica-ci-cd:7577d9b0b6b851e11738887065bf8844b838cf8d
+          image: ghcr.io/josuesaenz2006/practica-ci-cd:f5b43b94567701ecc46f15805aa07ba8d36e6c68
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -30,24 +30,34 @@ spec:
             - name: PORT
               value: "3000"
             - name: APP_VERSION
-              value: "7577d9b0"
+              value: "f5b43b94"
             - name: APP_COLOR
               value: "green"
+            - name: STARTUP_DELAY_SECONDS
+              value: "12"
             - name: SIMULATE_FAILURE
               value: "false"
+            # La credencial nunca se versiona: se resuelve desde el Secret del cluster.
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: inventario-app-secret
+                  key: API_KEY
+          # Tolera hasta 21s sin estar listo (1 + 2x10), por encima del arranque lento de 12s.
           readinessProbe:
             httpGet:
               path: /health
               port: 3000
-            initialDelaySeconds: 2
-            periodSeconds: 3
-            timeoutSeconds: 2
-            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 10
+          # Empieza despues del arranque lento para no reiniciar un pod que solo esta calentando.
           livenessProbe:
             httpGet:
               path: /health
               port: 3000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
