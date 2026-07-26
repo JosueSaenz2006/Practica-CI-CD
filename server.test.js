@@ -7,7 +7,22 @@ const path = require('node:path');
 const TEST_DB = path.join(__dirname, 'data', 'test-products.json');
 process.env.DB_PATH = TEST_DB;
 
-const { createApp, parseStartupDelaySeconds } = require('./server');
+const { createApp, parseStartupDelaySeconds, isApiKeyConfigured } = require('./server');
+
+// Aisla API_KEY: la app la consulta en cada peticion.
+function withApiKey(value, fn) {
+  const previous = process.env.API_KEY;
+  if (value === undefined) delete process.env.API_KEY;
+  else process.env.API_KEY = value;
+  return (async () => {
+    try {
+      return await fn();
+    } finally {
+      if (previous === undefined) delete process.env.API_KEY;
+      else process.env.API_KEY = previous;
+    }
+  })();
+}
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,8 +65,16 @@ function request(server, method, urlPath, body) {
         let raw = '';
         res.on('data', (chunk) => (raw += chunk));
         res.on('end', () => {
-          const parsed = raw ? JSON.parse(raw) : null;
-          resolve({ status: res.statusCode, body: parsed });
+          // Las rutas estaticas devuelven HTML: se conserva el cuerpo crudo en lugar de fallar.
+          let parsed = null;
+          if (raw) {
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              parsed = raw;
+            }
+          }
+          resolve({ status: res.statusCode, body: parsed, raw });
         });
       }
     );
@@ -187,6 +210,52 @@ test('un STARTUP_DELAY_SECONDS invalido no rompe la aplicacion', async () => {
   assert.strictEqual(parseStartupDelaySeconds('abc'), 0);
   assert.strictEqual(parseStartupDelaySeconds('-5'), 0);
   assert.strictEqual(parseStartupDelaySeconds('12'), 12);
+});
+
+test('sin API_KEY la aplicacion informa que no esta configurada', async () => {
+  await withApiKey(undefined, async () => {
+    const server = await startServer(createApp());
+    const res = await request(server, 'GET', '/version');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.apiKeyConfigured, false);
+    server.close();
+  });
+
+  assert.strictEqual(isApiKeyConfigured(), false);
+});
+
+test('con API_KEY la aplicacion informa que esta configurada', async () => {
+  await withApiKey('valor-de-prueba-no-real', async () => {
+    const server = await startServer(createApp());
+    const res = await request(server, 'GET', '/version');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.apiKeyConfigured, true);
+    server.close();
+  });
+});
+
+test('ninguna respuesta expone el valor de la credencial', async () => {
+  const secret = 'credencial-secreta-de-prueba-123456';
+
+  await withApiKey(secret, async () => {
+    const server = await startServer(createApp());
+
+    for (const urlPath of ['/version', '/health', '/api/products', '/api/products/1', '/']) {
+      const res = await request(server, 'GET', urlPath);
+      assert.ok(!res.raw.includes(secret), 'la credencial aparece en ' + urlPath);
+      assert.ok(!res.raw.includes(secret.slice(0, 10)), 'prefijo de la credencial en ' + urlPath);
+    }
+
+    // /version solo puede exponer estas claves: ninguna longitud, hash o fragmento adicional.
+    const version = await request(server, 'GET', '/version');
+    assert.deepStrictEqual(
+      Object.keys(version.body).sort(),
+      ['apiKeyConfigured', 'color', 'hostname', 'version']
+    );
+    assert.strictEqual(version.body.apiKeyConfigured, true);
+
+    server.close();
+  });
 });
 
 test('el resto de endpoints responde durante el arranque lento', async () => {

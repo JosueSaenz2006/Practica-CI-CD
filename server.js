@@ -7,6 +7,12 @@ const APP_VERSION = process.env.APP_VERSION || 'v1';
 const APP_COLOR = process.env.APP_COLOR || 'blue';
 const SIMULATE_FAILURE = process.env.SIMULATE_FAILURE === 'true';
 
+// Comprueba la presencia de la credencial sin leerla ni derivar nada de su contenido.
+function isApiKeyConfigured() {
+  const apiKey = process.env.API_KEY;
+  return typeof apiKey === 'string' && apiKey.trim().length > 0;
+}
+
 // Un valor ausente, no numerico o negativo se trata como cero: la app arranca lista.
 function parseStartupDelaySeconds(raw) {
   const seconds = Number(raw);
@@ -38,6 +44,8 @@ function createApp() {
       version: APP_VERSION,
       color: APP_COLOR,
       hostname: os.hostname(),
+      // Solo se publica si la credencial esta configurada, nunca su valor ni parte de el.
+      apiKeyConfigured: isApiKeyConfigured(),
     });
   });
 
@@ -83,4 +91,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApp, parseStartupDelaySeconds };
+module.exports = { createApp, parseStartupDelaySeconds, isApiKeyConfigured };
